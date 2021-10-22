@@ -18,7 +18,9 @@ struct Node
     int cost;
     int distance;   // = -1;
     Node *backedge; // = NULL
-    bool visited;   // = false;
+    int backRow;
+    int backCol;
+    bool visited; // = false;
 };
 
 struct Graph
@@ -51,10 +53,10 @@ public:
 typedef priority_queue<Node, vector<Node>, mycomparison> nodePQ;
 
 // declaration for function used to implement Dijkstra's
-Node *shortestPath(Graph &G, int startRow, int startCol, int endRow, int endCol);
+void shortestPath(Graph &G, int startRow, int startCol, int endRow, int endCol);
 
 // declaration for print function - prints backedge path
-void print(Node startNode, Node endNode);
+void print(Graph &G, int startRow, int startCol, int endRow, int endCol);
 
 // declaration for utility fn that prints the graph it read in
 void printGraph(Graph &g);
@@ -108,6 +110,8 @@ int main(int argc, char *argv[])
             n.cost = tileWeights.find(tileType)->second;
             n.distance = numeric_limits<int>::max();
             n.backedge = NULL;
+            n.backRow = -1;
+            n.backCol = -1;
             n.visited = false;
             Node *nPtr = &n;
             rowV.push_back(n);
@@ -121,23 +125,25 @@ int main(int argc, char *argv[])
     startNode.col = startCol;
 
     // nodePQ tilesByDistance; // shortestPath will fill this
-    Node *endNode = shortestPath(g, startRow, startCol, endRow, endCol);
-    cout << "Made it out of shortestPath()" << endl;
-    cout << "endNode backedge is " << endNode->backedge->row << " " << endNode->backedge->col << endl;
-    // print(startNode, endNode);
+    shortestPath(g, startRow, startCol, endRow, endCol);
+    // cout << "eh?" << endl;
+    print(g, startRow, startCol, endRow, endCol);
     return 0;
 } // end main
 
 // IMPLEMENTS DIJKSTRAS
-Node *shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
+void shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
 {
     nodePQ unvisited;
-    nodePQ visited; // do we even need this for this application
+    // nodePQ visited; // do we even need this for this application
+    vector<Node> visited;
+    vector<Node> fVisited;
 
     Node start;
     Node end2;
     Node *end;
-    // CREATE UNVISITED
+    // Node *nullDummy = new Node;
+    //  CREATE UNVISITED
     for (int i = 0; i < g.MAP_ROWS; i++)
     {
         for (int j = 0; j < g.MAP_COLS; j++)
@@ -146,6 +152,9 @@ Node *shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
             if ((g.graph[i][j].row == startRow) && (g.graph[i][j].col == startCol))
             {
                 g.graph[i][j].distance = 0;
+                // g.graph[i][j].backedge = nullDummy;
+                g.graph[i][j].backRow = startRow - 1; // orleave as -1?
+                g.graph[i][j].backCol = startCol - 1;
             }
             unvisited.push(g.graph[i][j]);
         }
@@ -156,12 +165,6 @@ Node *shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
     {
         Node n = unvisited.top(); // need to pop b4 next loop
         nodePQ frontier;
-
-        // save start for later
-        if ((n.row == startRow) && (n.col == startCol))
-        {
-            start = n; // this is mem address I think
-        }
 
         // FIND ADJACENCIES AND PUT THEM IN THE FRONTIER
         if (n.row > 0) // up: i-1
@@ -190,31 +193,19 @@ Node *shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
             {
                 thisDistance = n.distance + n2.cost;
                 // if you found a shorter path, update distance & backedge
-                if (n2.distance > thisDistance)
+                if (n2.distance > thisDistance) // SIGN
                 {
-                    n2.distance = thisDistance;
-                    n2.backedge = &n; // idk about the &
-                    cout << "NODE:      " << n2.row << " " << n2.col << endl;
-                    cout << "BACKEDGE:  " << n2.backedge->row << " " << n2.backedge->col << endl;
-                    cout << endl;
-                }
-                // save end node so you can return it
-                if ((n2.row == endRow) && (n2.col == endCol))
-                {
-                    end2.row = n2.row;
-                    end2.col = n2.col;
-                    //++++++++++++++++++++++++++++++++++++++++++++++++PROBLEM IS LINE 206+++++++++++++++++++++++++++++++
-                    end2.backedge = n2.backedge; // this is continually overwritten by n2's current value
-                    // cout << "in dijkstras I think end2 is " << end2.row << " " << end2.col << endl;
-                    // cout << "and I think end2->backedge is  " << end2.backedge->row << " " << end2.backedge->col << endl;
+                    g.graph[n2.row][n2.col].distance = thisDistance;
+                    g.graph[n.row][n.col].backRow = n2.row;
+                    g.graph[n.row][n.col].backCol = n2.col;
                 }
             }
-            frontier.pop();
-        } // end while(!frontier.empty())
+            frontier.pop(); // pops n2
+        }                   // end while(!frontier.empty())
         n.visited = true;
-        visited.push(n);
-        unvisited.pop();
-    } // end while(!unvisited.empty())
+        visited.push_back(n);
+        unvisited.pop(); // pops n
+    }                    // end while(!unvisited.empty())
 
     /* //TESTING -  UNCOMMENT THIS TO SEE MORE PROBLEM DETAILS
     visited.pop();
@@ -223,46 +214,45 @@ Node *shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
     cout << "at END of dijkstras I think top is " << top.row << " " << top.col << endl;
     cout << "and I think top->backedge is  " << top.backedge->row << " " << top.backedge->col << endl;
     cout << "at the END of dijkstras I think end2->backedge is " << end2.backedge->row << " " << end2.backedge->col << endl;
+
+
+    for (int i = 1; i < visited.size(); i++)
+    {
+        cout << "NODE FINAL:      " << visited[i].row << " " << visited[i].col << endl;
+        cout << "BACKEDGE FINAL:  " << g.graph[visited[i].row][visited[i].col].backRow << " " << g.graph[visited[i].row][visited[i].col].backCol << endl;
+    }
     */
-    return end;
 } // end dijkstras
 
 //+++++++++++++++++++++++++ MISC UTILITY FNS ++++++++++++++++++++++++
 
 // print function takes END NODE as arg, prints path from START TO END
-void print(Node startNode, Node endNode)
+void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
 {
     cout << "entered print function" << endl;
     vector<pair<int, int>> path;
     pair<int, int> tile; //<row, col>
-    Node *n = new Node;
-    n->row = endNode.row;
-    n->col = endNode.col;
-    cout << "here2" << endl;
-    n->backedge = endNode.backedge;
-    int count = 0;
-
-    cout << "NODE:      " << n->row << " " << n->col << endl;
-    cout << "BACKEDGE:  " << n->backedge->row << " " << n->backedge->col << endl;
-
+    int r = endRow;
+    int c = endCol;
     // traverse backedge till ya find startNode
-    while (!(n->row == startNode.row && n->col == startNode.col))
+    while (!(r == startRow && c == startCol))
     {
-        cout << "print count is " << count << endl;
-        tile.first = n->row;
-        tile.second = n->col;
-        path.push_back(tile);
-        n = n->backedge;
-        cout << "NODE:      " << n->row << " " << n->col << endl;
-        cout << "BACKEDGE:  " << n->backedge->row << " " << n->backedge->col << endl;
+        tile.first = r;
+        tile.second = c;
+        cout << "NODE:      " << r << " " << c << endl;
+        cout << "BACKEDGE:  " << g.graph[r][c].backRow << " " << g.graph[r][c].backCol << endl;
         cout << endl;
-        count++;
+        path.push_back(tile);
+        r = g.graph[r][c].backRow;
+        c = g.graph[r][c].backCol;
     }
     cout << "while loop completed" << endl;
+    /*
     for (int i = 0; i < path.size(); i++)
     {
         cout << path[i].first << " " << path[i].second << endl;
     }
+    */
 }
 
 // utility function used to make sure i read in the graph correctly
