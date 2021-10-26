@@ -1,4 +1,37 @@
-// dijsktras.cpp
+/*
+ ++++++++++++++++++++++++++++++++   DIJKSTRAS.CPP   ++++++++++++++++++++++++++++++++
+                                    Louise M. Fry
+
+ This program implements a Dijkstra's Algorithm to perform
+   rudimentary path finding on a 2D tile-based map.
+
+ This program is a solution to Project 4 in CS302 at UTK taught by Dr. Scott Emrich
+    (Assignment here: https://web.eecs.utk.edu/~semrich/cs302-21/assignments/proj04.html )
+
+ Input from stdin must have the following form:
+    TILES_N
+    TILE_NAME_0	TILE_COST_0
+    ...
+    TILE_NAME_N-1	TILE_COST_N-1
+
+    MAP_ROWS MAP_COLUMNS
+    TILE_0_0    ...
+    ...
+
+    TRAVELER_START_ROW TRAVELER_START_COL
+    TRAVELER_END_ROW   TRAVELER_END_COL
+
+ Output has form:
+    COST
+    START_ROW START_COL
+    ROW_1 COL_1
+    ...
+    END_ROW END_COL
+
+
+ Project GitHub here: https://github.com/lfry1/proj4
+
+ */
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -10,20 +43,20 @@
 
 using namespace std;
 
-struct Node
+struct Node // aka vertex
 {
-    int row;   // = 0;
-    int col;   // = 0;
-    char type; // = ' ';
+    int row; // node's position in graph is g.graph[row][col]
+    int col;
+    char type;
     int cost;
-    int distance; // = -1;
+    int distance; // init 999;
     vector<Node *> neighbors;
     int backRow;
     int backCol;
-    bool visited; // = false;
+    bool visited; // init false;
 };
 
-struct Graph
+struct Graph // stores all Nodes/vertices
 {
     vector<vector<Node>> graph; // 2d vector, every tile on the map is a node in here
     map<char, int> edgeWeights; // ie g costs 2, m costs 7
@@ -31,45 +64,21 @@ struct Graph
     int MAP_COLS;
 };
 
-// mycomparison is for use with nodePQ
-//  i straight up took this from https://www.cplusplus.com/reference/queue/priority_queue/priority_queue/
-class mycomparison
-{
-    bool reverse;
-
-public:
-    mycomparison(const bool &revparam = false)
-    {
-        reverse = revparam;
-    }
-    bool operator()(const Node *n1, const Node *n2) const
-    {
-        if (reverse)
-            return (n1->distance > n2->distance);
-        else
-            return (n1->distance < n2->distance);
-    }
-};
-typedef priority_queue<Node *, vector<Node *>, mycomparison> nodePQ;
+// declaration for utility fn that finds valid neighbors of each node
+void assignNeighbors(Graph &g);
 
 // declaration for function used to implement Dijkstra's
 void shortestPath(Graph &G, int startRow, int startCol, int endRow, int endCol);
 
 // declaration for print function - prints backedge path
-void print(Graph &G, int startRow, int startCol, int endRow, int endCol);
+void printMyPath(Graph &G, int startRow, int startCol, int endRow, int endCol);
 
-// declaration for utility fn that finds valid neighbors of each node
-void assignNeighbors(Graph &g);
-
-// declaration for utility fn that prints the graph it read in
+// declaration for utility fn that prints graph info
 void printGraph(Graph &g);
 
 //+++++++++++++++++++++++++ MAIN EXECUTION ++++++++++++++++++++++++
 int main(int argc, char *argv[])
 {
-    // ifstream file;
-    //  file.open("input");
-
     int numTileTypes;
     char tileType;
     int tileValue;
@@ -102,17 +111,15 @@ int main(int argc, char *argv[])
         for (int j = 0; j < mapCols; j++)
         {
             cin >> tileType;
-            Node n; // should this be declared outside of the loop?
-            map<char, int>::iterator t;
+            Node n;
             n.row = i;
             n.col = j;
             n.type = tileType;
             n.cost = tileWeights.find(tileType)->second;
-            n.distance = 999;
+            n.distance = numeric_limits<int>::max();
             n.backRow = -1;
             n.backCol = -1;
             n.visited = false;
-            Node *nPtr = &n;
             rowV.push_back(n);
         }
         g.graph.push_back(rowV);
@@ -121,11 +128,9 @@ int main(int argc, char *argv[])
     cin >> startRow >> startCol >> endRow >> endCol;
     g.graph[startRow][startCol].distance = 0;
 
-    assignNeighbors(g);
-    // printGraph(g);
-    shortestPath(g, startRow, startCol, endRow, endCol);
-    cout << "eh?" << endl;
-    print(g, startRow, startCol, endRow, endCol);
+    assignNeighbors(g);                                  // find adjacent nodes of every vertex in graph
+    shortestPath(g, startRow, startCol, endRow, endCol); // Dijkstra's
+    printMyPath(g, startRow, startCol, endRow, endCol);  // prints shortest path from start to end
     return 0;
 } // end main
 
@@ -135,74 +140,53 @@ void shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
     multimap<int, Node *> unvisited;
     int curRow;
     int curCol;
-    int adjRow;
-    int adjCol;
     int d; // distance
 
     // insert starting value into unvisited
-
     unvisited.insert(pair<int, Node *>(0, &g.graph[startRow][startCol]));
 
+    // Dijkstra's - visits all nodes and finds their shortest path distance from start
     while (!unvisited.empty())
     {
+        // go to shortest-distance unvisited node n
         curRow = unvisited.begin()->second->row;
         curCol = unvisited.begin()->second->col;
-        unvisited.erase(unvisited.begin());
+        unvisited.erase(unvisited.begin()); // remove n from unvisited
 
-        // cout << curRow << " " << curCol << "  has " << g.graph[curRow][curCol].neighbors.size() << " neighbors: " << endl;
         //  look thru each of n's neighbors
         for (int i = 0; i < g.graph[curRow][curCol].neighbors.size(); i++)
         {
-            // cout << "   " << g.graph[curRow][curCol].neighbors[i]->row << " " << g.graph[curRow][curCol].neighbors[i]->col;
-            // cout << " - VISITED = " << g.graph[curRow][curCol].neighbors[i]->visited << endl;
-
             // make sure neighbor hasn't already been visited
             if (g.graph[curRow][curCol].neighbors[i]->visited == false)
             {
-                adjRow = g.graph[curRow][curCol].neighbors[i]->row;
-                adjCol = g.graph[curRow][curCol].neighbors[i]->col;
-
                 d = g.graph[curRow][curCol].distance + g.graph[curRow][curCol].cost;
-                // cout << "       distance is " << d << endl;
 
+                // if you found a shorter path for an unvisited neighor, update accordingly
                 if (d < g.graph[curRow][curCol].neighbors[i]->distance)
                 {
                     g.graph[curRow][curCol].neighbors[i]->distance = d;
                     g.graph[curRow][curCol].neighbors[i]->backRow = curRow;
                     g.graph[curRow][curCol].neighbors[i]->backCol = curCol;
+                    // add the updated, unvisted neighbor to unvisited
                     unvisited.insert(pair<int, Node *>(d, g.graph[curRow][curCol].neighbors[i]));
                 }
             }
         }
-        g.graph[curRow][curCol].visited = true;
+        g.graph[curRow][curCol].visited = true; // so it doesn't get re-examined as a neighbor
     }
+    cout << count << endl;
 }
-/*
-cout << "NODE:      " << g.graph[curRow][curCol].row << " " << g.graph[curRow][curCol].col << endl;
-cout << "DISTANCE:  " << g.graph[curRow][curCol].distance << endl;
-cout << "BACKEDGE:  " << g.graph[curRow][curCol].backRow << " " << g.graph[curRow][curCol].backCol << endl;
-cout << endl;
-
-for (int i = 0; i < g.MAP_ROWS; i++)
-{
-    for (int j = 0; j < g.MAP_COLS; j++)
-    {
-        cout << "FINAL NODE:            " << g.graph[i][j].row << " " << g.graph[i][j].col << endl;
-        cout << "DISTANCE FROM START:   " << g.graph[i][j].distance << endl;
-        cout << "FINAL BACKEDGE:        " << g.graph[i][j].backRow << " " << g.graph[i][j].backCol << endl;
-        cout << endl;
-    }
-}
-*/
 
 //+++++++++++++++++++++++++ MISC UTILITY FNS ++++++++++++++++++++++++
+
+// finds valid adjacenies for each node n in graph and pushes them to n's adj list
 void assignNeighbors(Graph &g)
 {
     for (int i = 0; i < g.MAP_ROWS; i++)
     {
         for (int j = 0; j < g.MAP_COLS; j++)
         {
-            // FIND ADJACENCIES AND PUT THEM IN THE unvisited
+            // FIND VALID ADJACENCIES AND PUT THEM IN ADJ LIST ("n.neighbors")
             if (i > 0) // up: i-1
             {
                 g.graph[i][j].neighbors.push_back(&g.graph[i - 1][j]);
@@ -223,48 +207,34 @@ void assignNeighbors(Graph &g)
     }
 }
 
-// utility function used to make sure i read in the graph correctly
-void printGraph(Graph &g)
-{
-    for (int i = 0; i < g.MAP_ROWS; i++)
-    {
-        for (int j = 0; j < g.MAP_COLS; j++)
-        {
-            cout << i << " " << j << "'s neighbors are ";
-            for (int k = 0; k < g.graph[i][j].neighbors.size(); k++)
-            {
-                cout << g.graph[i][j].neighbors[k]->row << " " << g.graph[i][j].neighbors[k]->col << "  ";
-            }
-            cout << endl;
-        }
-    }
-}
-
-// print function takes END NODE as arg, prints path from START TO END
-void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
+// print function prints the shortest path from start to end in format X1 Y1, X2 Y2
+void printMyPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
 {
     vector<pair<int, int>> path;
     pair<int, int> tile; //<row, col>
     int r = endRow;
-    int r2;
+    int r2; // temp var
     int c = endCol;
 
     // traverse backedge till ya find startNode
+    // can't print on this traversal b/c it will be end-to-start
     while ((r != startRow) || (c != startCol))
     {
         tile.first = r;
         tile.second = c;
         path.push_back(tile);
 
-        r2 = g.graph[r][c].backRow;
+        r2 = g.graph[r][c].backRow; // temp so that c != [r2][c].backCol
         c = g.graph[r][c].backCol;
-        r = r2;
+        r = r2; // r = g.graph[r][c].backRow
     }
     tile.first = startRow;
     tile.second = startCol;
     path.push_back(tile);
 
-    cout << g.graph[endRow][endCol].distance <<endl; 
+    // print path distance
+    cout << g.graph[endRow][endCol].distance << endl;
+    // print path from start to end
     for (int i = path.size() - 1; i > -1; i--)
     {
         cout << path[i].first << " " << path[i].second << endl;
