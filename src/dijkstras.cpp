@@ -174,7 +174,6 @@ void shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
         }
         g.graph[curRow][curCol].visited = true; // so it doesn't get re-examined as a neighbor
     }
-    cout << count << endl;
 }
 
 //+++++++++++++++++++++++++ MISC UTILITY FNS ++++++++++++++++++++++++
