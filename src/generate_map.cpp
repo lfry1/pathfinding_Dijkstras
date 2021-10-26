@@ -75,7 +75,7 @@ int main(int argc, char* argv[]){
 			}
 		}
 		dataFile << "0 0" << endl;
-		dataFile << n << " " << n << endl;
+		dataFile << n-1 << " " << n-1 << endl;
 		dataFile.close();
 	}
 return 0;
