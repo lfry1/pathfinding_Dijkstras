@@ -41,19 +41,18 @@ This implementation uses a “multimap<int, Node *> unvisited” (with the int b
 instead of a priority queue as the “unvisited” container.  
 Priority queue would likely have been faster, because it uses a heap. 
 
-BUGS/NOTES: 
-This implementation is crashing for N > 500 and therefore benchmarking only goes to 200.
-This doesn’t scale too well, due in part to the use of the multimap rather than the priority queue.
+This doesn’t scale too well, due in part to the use of the multimap rather than the priority queue in Dijkstra’s.
+
 
 BENCHMARKING:
------------------------------------------------------
-| N             | Elapsed Time (s) | Memory Usage   |
-|---------------|------------------|----------------|
-| 10            | 0.00             | 3315           |
-| 20            | 0.00             | 3390           |
-| 50            | 0.00             | 3594           |
-| 100           | 0.02             | 4427           |
-| 200           | 0.08             | 7726           |
-| 500           | N/A              | N/A            |
-| 1000          | N/A              | N/A            |
+---------------------------------------------------
+| N             |Elapsed Time(KB)| Memory Usage   |  
+|---------------|--------------- |----------------|
+| 10            | 0.00           | 3315           |
+| 20            | 0.00           | 3390           |
+| 50            | 0.00           | 3594           |
+| 100           | 0.02           | 4427           |
+| 200           | 0.08           | 7726           |
+| 500           | 0.55           | 30761          |
+| 1000          | 2.164          | 112888         |
 
