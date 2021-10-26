@@ -1,8 +1,7 @@
 
  ++++++++++++++++++   PROJECT 4 - PATH FINDING   ++++++++++++++++++
 
-Author Louise M. Fry
-Co-author Mikaela Atkinson
+     by Louise M. Fry & Mikaela Atkinson
 
 This project implements a Dijkstra's Algorithm to perform rudimentary path finding on a 2D tile-based map.
 
