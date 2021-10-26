@@ -16,8 +16,8 @@ struct Node
     int col;   // = 0;
     char type; // = ' ';
     int cost;
-    int distance;   // = -1;
-    Node *backedge; // = NULL
+    int distance; // = -1;
+    vector<Node *> neighbors;
     int backRow;
     int backCol;
     bool visited; // = false;
@@ -31,7 +31,8 @@ struct Graph
     int MAP_COLS;
 };
 
-// i straight up took this from https://www.cplusplus.com/reference/queue/priority_queue/priority_queue/
+// mycomparison is for use with nodePQ
+//  i straight up took this from https://www.cplusplus.com/reference/queue/priority_queue/priority_queue/
 class mycomparison
 {
     bool reverse;
@@ -41,16 +42,15 @@ public:
     {
         reverse = revparam;
     }
-    bool operator()(const Node &n1, const Node &n2) const
+    bool operator()(const Node *n1, const Node *n2) const
     {
         if (reverse)
-            return !((n1.row == n2.row) && (n1.col == n2.col));
+            return (n1->distance > n2->distance);
         else
-            return ((n1.row == n2.row) && (n1.col == n2.col));
+            return (n1->distance < n2->distance);
     }
 };
-
-typedef priority_queue<Node, vector<Node>, mycomparison> nodePQ;
+typedef priority_queue<Node *, vector<Node *>, mycomparison> nodePQ;
 
 // declaration for function used to implement Dijkstra's
 void shortestPath(Graph &G, int startRow, int startCol, int endRow, int endCol);
@@ -58,13 +58,13 @@ void shortestPath(Graph &G, int startRow, int startCol, int endRow, int endCol);
 // declaration for print function - prints backedge path
 void print(Graph &G, int startRow, int startCol, int endRow, int endCol);
 
+// declaration for utility fn that finds valid neighbors of each node
+void assignNeighbors(Graph &g);
+
 // declaration for utility fn that prints the graph it read in
 void printGraph(Graph &g);
 
-// utility fn that creates a multimap of adjacent node*s
-// void createAdjList(Graph &g);
-
-// Main Execution
+//+++++++++++++++++++++++++ MAIN EXECUTION ++++++++++++++++++++++++
 int main(int argc, char *argv[])
 {
     // ifstream file;
@@ -108,8 +108,7 @@ int main(int argc, char *argv[])
             n.col = j;
             n.type = tileType;
             n.cost = tileWeights.find(tileType)->second;
-            n.distance = numeric_limits<int>::max();
-            n.backedge = NULL;
+            n.distance = 999;
             n.backRow = -1;
             n.backCol = -1;
             n.visited = false;
@@ -120,139 +119,108 @@ int main(int argc, char *argv[])
     }
     // get start and end positions
     cin >> startRow >> startCol >> endRow >> endCol;
-    Node startNode;
-    startNode.row = startRow; // row and col are all you ned to compare Nodes
-    startNode.col = startCol;
+    g.graph[startRow][startCol].distance = 0;
 
-    // nodePQ tilesByDistance; // shortestPath will fill this
+    assignNeighbors(g);
+    // printGraph(g);
     shortestPath(g, startRow, startCol, endRow, endCol);
-    // cout << "eh?" << endl;
+    cout << "eh?" << endl;
     print(g, startRow, startCol, endRow, endCol);
     return 0;
 } // end main
 
-// IMPLEMENTS DIJKSTRAS
+//+++++++++++++++++++++++++ IMPLEMENTS DIJKSTRAS ++++++++++++++++++++++++
 void shortestPath(Graph &g, int startRow, int startCol, int endRow, int endCol)
 {
-    nodePQ unvisited;
-    // nodePQ visited; // do we even need this for this application
-    vector<Node> visited;
-    vector<Node> fVisited;
+    multimap<int, Node *> unvisited;
+    int curRow;
+    int curCol;
+    int adjRow;
+    int adjCol;
+    int d; // distance
 
-    Node start;
-    Node end2;
-    Node *end;
-    // Node *nullDummy = new Node;
-    //  CREATE UNVISITED
+    // insert starting value into unvisited
+
+    unvisited.insert(pair<int, Node *>(0, &g.graph[startRow][startCol]));
+
+    while (!unvisited.empty())
+    {
+        curRow = unvisited.begin()->second->row;
+        curCol = unvisited.begin()->second->col;
+        unvisited.erase(unvisited.begin());
+
+        // cout << curRow << " " << curCol << "  has " << g.graph[curRow][curCol].neighbors.size() << " neighbors: " << endl;
+        //  look thru each of n's neighbors
+        for (int i = 0; i < g.graph[curRow][curCol].neighbors.size(); i++)
+        {
+            // cout << "   " << g.graph[curRow][curCol].neighbors[i]->row << " " << g.graph[curRow][curCol].neighbors[i]->col;
+            // cout << " - VISITED = " << g.graph[curRow][curCol].neighbors[i]->visited << endl;
+
+            // make sure neighbor hasn't already been visited
+            if (g.graph[curRow][curCol].neighbors[i]->visited == false)
+            {
+                adjRow = g.graph[curRow][curCol].neighbors[i]->row;
+                adjCol = g.graph[curRow][curCol].neighbors[i]->col;
+
+                d = g.graph[curRow][curCol].distance + g.graph[curRow][curCol].cost;
+                // cout << "       distance is " << d << endl;
+
+                if (d < g.graph[curRow][curCol].neighbors[i]->distance)
+                {
+                    g.graph[curRow][curCol].neighbors[i]->distance = d;
+                    g.graph[curRow][curCol].neighbors[i]->backRow = curRow;
+                    g.graph[curRow][curCol].neighbors[i]->backCol = curCol;
+                    unvisited.insert(pair<int, Node *>(d, g.graph[curRow][curCol].neighbors[i]));
+                }
+            }
+        }
+        g.graph[curRow][curCol].visited = true;
+    }
+}
+/*
+cout << "NODE:      " << g.graph[curRow][curCol].row << " " << g.graph[curRow][curCol].col << endl;
+cout << "DISTANCE:  " << g.graph[curRow][curCol].distance << endl;
+cout << "BACKEDGE:  " << g.graph[curRow][curCol].backRow << " " << g.graph[curRow][curCol].backCol << endl;
+cout << endl;
+
+for (int i = 0; i < g.MAP_ROWS; i++)
+{
+    for (int j = 0; j < g.MAP_COLS; j++)
+    {
+        cout << "FINAL NODE:            " << g.graph[i][j].row << " " << g.graph[i][j].col << endl;
+        cout << "DISTANCE FROM START:   " << g.graph[i][j].distance << endl;
+        cout << "FINAL BACKEDGE:        " << g.graph[i][j].backRow << " " << g.graph[i][j].backCol << endl;
+        cout << endl;
+    }
+}
+*/
+
+//+++++++++++++++++++++++++ MISC UTILITY FNS ++++++++++++++++++++++++
+void assignNeighbors(Graph &g)
+{
     for (int i = 0; i < g.MAP_ROWS; i++)
     {
         for (int j = 0; j < g.MAP_COLS; j++)
         {
-            // change start node dist so it will be at top of unvisited
-            if ((g.graph[i][j].row == startRow) && (g.graph[i][j].col == startCol))
+            // FIND ADJACENCIES AND PUT THEM IN THE unvisited
+            if (i > 0) // up: i-1
             {
-                g.graph[i][j].distance = 0;
-                // g.graph[i][j].backedge = nullDummy;
-                g.graph[i][j].backRow = startRow - 1; // orleave as -1?
-                g.graph[i][j].backCol = startCol - 1;
+                g.graph[i][j].neighbors.push_back(&g.graph[i - 1][j]);
             }
-            unvisited.push(g.graph[i][j]);
-        }
-    }
-
-    // WHILE UNVISITED IS NOT EMPTY
-    while (!unvisited.empty())
-    {
-        Node n = unvisited.top(); // need to pop b4 next loop
-        nodePQ frontier;
-
-        // FIND ADJACENCIES AND PUT THEM IN THE FRONTIER
-        if (n.row > 0) // up: i-1
-        {
-            frontier.push(g.graph[n.row - 1][n.col]);
-        }
-        if (n.row < g.MAP_ROWS - 2) // down: i+1
-        {
-            frontier.push(g.graph[n.row + 1][n.col]);
-        }
-        if (n.col > 0) // left: j-1
-        {
-            frontier.push(g.graph[n.row][n.col - 1]);
-        }
-        if (n.col < g.MAP_COLS - 2) // right: j+1
-        {
-            frontier.push(g.graph[n.row][n.col + 1]);
-        }
-
-        // FOR EACH ADJACENT NODE n2 ADJACENT TO n
-        while (!frontier.empty())
-        {
-            Node n2 = frontier.top(); // need to pop b4 next loop
-            int thisDistance;
-            if (!n2.visited)
+            if (i < g.MAP_ROWS - 1) // down: i+1
             {
-                thisDistance = n.distance + n2.cost;
-                // if you found a shorter path, update distance & backedge
-                if (n2.distance > thisDistance) // SIGN
-                {
-                    g.graph[n2.row][n2.col].distance = thisDistance;
-                    g.graph[n.row][n.col].backRow = n2.row;
-                    g.graph[n.row][n.col].backCol = n2.col;
-                }
+                g.graph[i][j].neighbors.push_back(&g.graph[i + 1][j]);
             }
-            frontier.pop(); // pops n2
-        }                   // end while(!frontier.empty())
-        n.visited = true;
-        visited.push_back(n);
-        unvisited.pop(); // pops n
-    }                    // end while(!unvisited.empty())
-
-    /* //TESTING -  UNCOMMENT THIS TO SEE MORE PROBLEM DETAILS
-    visited.pop();
-    visited.pop();
-    Node top = visited.top();
-    cout << "at END of dijkstras I think top is " << top.row << " " << top.col << endl;
-    cout << "and I think top->backedge is  " << top.backedge->row << " " << top.backedge->col << endl;
-    cout << "at the END of dijkstras I think end2->backedge is " << end2.backedge->row << " " << end2.backedge->col << endl;
-
-
-    for (int i = 1; i < visited.size(); i++)
-    {
-        cout << "NODE FINAL:      " << visited[i].row << " " << visited[i].col << endl;
-        cout << "BACKEDGE FINAL:  " << g.graph[visited[i].row][visited[i].col].backRow << " " << g.graph[visited[i].row][visited[i].col].backCol << endl;
+            if (j > 0) // left: j-1
+            {
+                g.graph[i][j].neighbors.push_back(&g.graph[i][j - 1]);
+            }
+            if (j < g.MAP_COLS - 1) // right: j+1
+            {
+                g.graph[i][j].neighbors.push_back(&g.graph[i][j + 1]);
+            }
+        }
     }
-    */
-} // end dijkstras
-
-//+++++++++++++++++++++++++ MISC UTILITY FNS ++++++++++++++++++++++++
-
-// print function takes END NODE as arg, prints path from START TO END
-void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
-{
-    cout << "entered print function" << endl;
-    vector<pair<int, int>> path;
-    pair<int, int> tile; //<row, col>
-    int r = endRow;
-    int c = endCol;
-    // traverse backedge till ya find startNode
-    while (!(r == startRow && c == startCol))
-    {
-        tile.first = r;
-        tile.second = c;
-        cout << "NODE:      " << r << " " << c << endl;
-        cout << "BACKEDGE:  " << g.graph[r][c].backRow << " " << g.graph[r][c].backCol << endl;
-        cout << endl;
-        path.push_back(tile);
-        r = g.graph[r][c].backRow;
-        c = g.graph[r][c].backCol;
-    }
-    cout << "while loop completed" << endl;
-    /*
-    for (int i = 0; i < path.size(); i++)
-    {
-        cout << path[i].first << " " << path[i].second << endl;
-    }
-    */
 }
 
 // utility function used to make sure i read in the graph correctly
@@ -262,8 +230,47 @@ void printGraph(Graph &g)
     {
         for (int j = 0; j < g.MAP_COLS; j++)
         {
-            cout << g.graph[i][j].type << " ";
+            cout << i << " " << j << "'s neighbors are ";
+            for (int k = 0; k < g.graph[i][j].neighbors.size(); k++)
+            {
+                cout << g.graph[i][j].neighbors[k]->row << " " << g.graph[i][j].neighbors[k]->col << "  ";
+            }
+            cout << endl;
         }
-        cout << endl;
+    }
+}
+
+// print function takes END NODE as arg, prints path from START TO END
+void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
+{
+    cout << "entered print function" << endl;
+    vector<pair<int, int>> path;
+    pair<int, int> tile; //<row, col>
+    int r = endRow;
+    int r2;
+    int c = endCol;
+
+    cout << "starting node: " << startRow << " " << startCol << endl;
+
+    // traverse backedge till ya find startNode
+    while ((r != startRow) || (c != startCol))
+    {
+        // cout << "NODE:      " << r << " " << c << endl;
+        // cout << "BACKEDGE:  " << g.graph[r][c].backRow << " " << g.graph[r][c].backCol << endl;
+        // cout << endl;
+
+        tile.first = r;
+        tile.second = c;
+        path.push_back(tile);
+
+        r2 = g.graph[r][c].backRow;
+        c = g.graph[r][c].backCol;
+        r = r2;
+    }
+    // cout << "while loop completed" << endl;
+
+    for (int i = 0; i < path.size(); i++)
+    {
+        cout << path[i].first << " " << path[i].second << endl;
     }
 }
