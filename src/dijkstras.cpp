@@ -264,6 +264,7 @@ void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
     tile.second = startCol;
     path.push_back(tile);
 
+    cout << g.graph[endRow][endCol].distance <<endl; 
     for (int i = path.size() - 1; i > -1; i--)
     {
         cout << path[i].first << " " << path[i].second << endl;
