@@ -243,22 +243,15 @@ void printGraph(Graph &g)
 // print function takes END NODE as arg, prints path from START TO END
 void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
 {
-    cout << "entered print function" << endl;
     vector<pair<int, int>> path;
     pair<int, int> tile; //<row, col>
     int r = endRow;
     int r2;
     int c = endCol;
 
-    cout << "starting node: " << startRow << " " << startCol << endl;
-
     // traverse backedge till ya find startNode
     while ((r != startRow) || (c != startCol))
     {
-        // cout << "NODE:      " << r << " " << c << endl;
-        // cout << "BACKEDGE:  " << g.graph[r][c].backRow << " " << g.graph[r][c].backCol << endl;
-        // cout << endl;
-
         tile.first = r;
         tile.second = c;
         path.push_back(tile);
@@ -267,9 +260,11 @@ void print(Graph &g, int startRow, int startCol, int endRow, int endCol)
         c = g.graph[r][c].backCol;
         r = r2;
     }
-    // cout << "while loop completed" << endl;
+    tile.first = startRow;
+    tile.second = startCol;
+    path.push_back(tile);
 
-    for (int i = 0; i < path.size(); i++)
+    for (int i = path.size() - 1; i > -1; i--)
     {
         cout << path[i].first << " " << path[i].second << endl;
     }
