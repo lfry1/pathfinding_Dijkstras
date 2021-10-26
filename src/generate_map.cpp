@@ -53,7 +53,7 @@ int main(int argc, char* argv[]){
 		ss << fileNumber;
 		fn = ss.str();
 		fileName = "input" + fn + ".txt"; 
-		filePath = "/home/matkin29/cs302/cs302/project04/proj4/data/" + fileName;
+		filePath = fileName;
 		dataFile.open(filePath);
 		dataFile << tiles.size() << endl;
 		for( it = tiles.begin(); it != tiles.end(); ++it ){
